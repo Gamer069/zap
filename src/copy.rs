@@ -1,4 +1,4 @@
-use std::{io::{self, Write}, path::Path};
+use std::{io::{self, Write}, path::Path, time::Instant};
 use yn::yes;
 use rayon::prelude::*;
 
@@ -16,47 +16,58 @@ pub fn start(cli: Cli) {
     let strict = cli.strict;
     let force = cli.force;
 
-    if src.len() > 1 && let Err(err) = std::fs::create_dir_all(dest) {
-        eprintln!("Failed to create destination directory {}: {}", dest, err);
-        std::process::exit(-1);
+    let now = Instant::now();
+
+    if src.len() > 1 {
+        if let Err(err) = std::fs::create_dir_all(dest) {
+            eprintln!("Failed to create destination directory {}: {}", dest, err);
+            std::process::exit(-1);
+        }
     }
 
     let jobs = if force {
-        src.into_par_iter().map(|src| {
-            let dest = path::join_path_str(dest, path::filename_from_path(&src).unwrap());
-            CopyJob { src, dest, overwrite: true }
-        }).collect::<Vec<CopyJob>>().into_par_iter()
+        src.into_par_iter().filter_map(|src| {
+            let dest = path::join_path_str(dest, path::filename_from_path(&src)?);
+            Some(CopyJob { src, dest, overwrite: true })
+        }).collect::<Vec<CopyJob>>()
     } else {
-        src.iter().map(|src| {
-            let dest = path::join_path_str(dest, path::filename_from_path(src).unwrap());
+        src.into_iter().filter_map(|src| {
+            let dest = path::join_path_str(dest, path::filename_from_path(&src)?);
 
             let overwrite = if path::path_exists_str(&dest) {
                 let ask = ask(&format!("Override {}? [Y/n]", dest));
-                yes(&ask) || ask == "\n".to_string()
+                yes(&ask) || ask == "\n"
             } else {
                 true
             };
-            CopyJob { src: src.clone(), dest, overwrite }
-        }).collect::<Vec<CopyJob>>().into_par_iter()
+
+            Some(CopyJob { src, dest, overwrite })
+        }).collect::<Vec<CopyJob>>()
     };
 
-    jobs.for_each(|job| {
+    println!("created jobs, {:#?}", now.elapsed());
+
+    jobs.into_par_iter().for_each(|job| {
         copy(job, strict);
     });
+
+    println!("copied files, {:#?}", now.elapsed());
 }
 
 pub fn copy(job: CopyJob, strict: bool) {
     if !job.overwrite { return; };
 
-    let res = std::fs::copy(&job.src, &job.dest);
-
-    if let Err(err) = res {
-        eprintln!("Failed copying file {} to {}: {}", job.src, job.dest, err.to_string());
+    if let Err(err) = copy_impl(&job.src, &job.dest) {
+        eprintln!("Failed copying file {} to {}: {}", job.src, job.dest, err);
 
         if strict {
             std::process::exit(-1);
         }
     }
+}
+
+pub fn copy_impl(src: &str, dest: &str) -> io::Result<()> {
+    std::fs::copy(src, dest).map(|_| ())
 }
 
 pub fn ask(msg: &str) -> String {

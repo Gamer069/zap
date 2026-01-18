@@ -9,21 +9,11 @@ pub fn filename_from_path(path: &str) -> Option<&str> {
 // Join paths as strings - single allocation
 #[inline]
 pub fn join_path_str(base: &str, name: &str) -> String {
-    let mut result = String::with_capacity(base.len() + name.len() + 1);
-    result.push_str(base);
-    
-    // Add separator if needed
-    if !base.ends_with('/') && !base.ends_with('\\') {
-        #[cfg(unix)]
-        result.push('/');
-        
-        #[cfg(windows)]
-        result.push('\\');
+    if base.ends_with('/') || base.ends_with('\\') {
+        return [base, name].concat();
     }
-    
-    result.push_str(name);
 
-    result
+    return [base, "/", name].concat();
 }
 
 // Check if path exists - uses std::path only for the check

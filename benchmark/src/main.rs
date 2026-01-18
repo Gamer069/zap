@@ -3,18 +3,17 @@ use std::fs::File;
 use std::io::Write;
 
 fn main() {
-    let num_files = 2000;
-    let size_mb = 100;
+    let num_files = 100000;
+    let size_kb = 4;
     
-    println!("Creating {} files of {}MB each...", num_files, size_mb);
+    println!("Creating {} files of {}KB each...", num_files, size_kb);
     
     (1..=num_files).into_par_iter().for_each(|i| {
         let filename = format!("{}", i);
         let mut file = File::create(&filename).unwrap();
         
-        // Create 100MB of data
-        let chunk = vec![0u8; 1024 * 1024]; // 1MB chunks
-        for _ in 0..size_mb {
+        let chunk = vec![0u8; 1000];
+        for _ in 0..size_kb {
             file.write_all(&chunk).unwrap();
         }
         
