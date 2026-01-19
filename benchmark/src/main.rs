@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::Write;
 
 fn main() {
-    let num_files = 100000;
+    let num_files = 1000000;
     let size_kb = 4;
     
     println!("Creating {} files of {}KB each...", num_files, size_kb);

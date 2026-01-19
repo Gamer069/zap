@@ -37,6 +37,9 @@ pub struct Cli {
 
     #[arg(short, long)]
     pub strict: bool,
+
+    #[arg(short, long)]
+    pub time: bool,
 }
 
 #[derive(Parser, Debug, Clone, Copy)]

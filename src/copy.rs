@@ -15,6 +15,8 @@ pub fn start(cli: Cli) {
     let dest = &cli.dest;
     let strict = cli.strict;
     let force = cli.force;
+    let one = src.len() == 1;
+    let time = cli.time;
 
     let now = Instant::now();
 
@@ -27,12 +29,20 @@ pub fn start(cli: Cli) {
 
     let jobs = if force {
         src.into_par_iter().filter_map(|src| {
-            let dest = path::join_path_str(dest, path::filename_from_path(&src)?);
+            let dest = if one {
+                dest.to_string()
+            } else {
+                path::join_path_str(dest, path::filename_from_path(&src)?)
+            };
             Some(CopyJob { src, dest, overwrite: true })
         }).collect::<Vec<CopyJob>>()
     } else {
         src.into_iter().filter_map(|src| {
-            let dest = path::join_path_str(dest, path::filename_from_path(&src)?);
+            let dest = if one {
+                dest.to_string()
+            } else {
+                path::join_path_str(dest, path::filename_from_path(&src)?)
+            };
 
             let overwrite = if path::path_exists_str(&dest) {
                 let ask = ask(&format!("Override {}? [Y/n]", dest));
@@ -45,13 +55,17 @@ pub fn start(cli: Cli) {
         }).collect::<Vec<CopyJob>>()
     };
 
-    println!("created jobs, {:#?}", now.elapsed());
+    if time {
+        println!("created jobs, {:#?}", now.elapsed());
+    }
 
     jobs.into_par_iter().for_each(|job| {
         copy(job, strict);
     });
 
-    println!("copied files, {:#?}", now.elapsed());
+    if time {
+        println!("copied files, {:#?}", now.elapsed());
+    }
 }
 
 pub fn copy(job: CopyJob, strict: bool) {
